@@ -1,0 +1,34 @@
+name: 'ForgeDeploy'
+description: 'Deploy and install a Forge app using Forge CLI'
+inputs:
+  email:
+    required: true
+  apiToken:
+    required: true
+  environment:
+    required: true
+  siteUrl:
+    required: true
+  product:
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - run: npm install -g @forge/cli
+      shell: bash
+
+    - run: |
+        mkdir -p ~/.forge
+        echo "{\"cli\": {\"tokens\": {\"${{ inputs.email }}\": \"${{ inputs.apiToken }}\"}}}" > ~/.forge/credentials.json
+      shell: bash
+
+    - run: forge deploy --environment ${{ inputs.environment }}
+      shell: bash
+
+    - run: forge install --product ${{ inputs.product }} --site ${{ inputs.siteUrl }} --environment ${{ inputs.environment }} --non-interactive
+      shell: bash
