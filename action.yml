@@ -1,15 +1,21 @@
 name: 'ForgeDeploy'
 description: 'Deploy and install a Forge app using Forge CLI'
+
 inputs:
   email:
+    description: 'Atlassian account email'
     required: true
   apiToken:
+    description: 'Atlassian API token'
     required: true
   environment:
+    description: 'Forge environment to deploy to (e.g. development, staging, production)'
     required: true
   siteUrl:
+    description: 'Atlassian site URL (e.g. yourcompany.atlassian.net)'
     required: true
   product:
+    description: 'Atlassian product to deploy to (e.g. jira, confluence)'
     required: true
 
 runs:
@@ -19,16 +25,24 @@ runs:
       with:
         node-version: '18'
 
-    - run: npm install -g @forge/cli
+    - name: Install Forge CLI
+      run: npm install -g @forge/cli
       shell: bash
 
-    - run: |
+    - name: Create Forge credentials file
+      run: |
         mkdir -p ~/.forge
         echo "{\"cli\": {\"tokens\": {\"${{ inputs.email }}\": \"${{ inputs.apiToken }}\"}}}" > ~/.forge/credentials.json
       shell: bash
 
-    - run: forge deploy --environment ${{ inputs.environment }}
+    - name: Disable Forge analytics prompt
+      run: forge settings analytics off
       shell: bash
 
-    - run: forge install --product ${{ inputs.product }} --site ${{ inputs.siteUrl }} --environment ${{ inputs.environment }} --non-interactive
+    - name: Deploy Forge app
+      run: forge deploy --environment ${{ inputs.environment }}
+      shell: bash
+
+    - name: Install Forge app
+      run: forge install --product ${{ inputs.product }} --site ${{ inputs.siteUrl }} --environment ${{ inputs.environment }} --non-interactive
       shell: bash
