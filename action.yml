@@ -1,9 +1,9 @@
 name: 'ForgeDeploy'
-description: 'Deploy and install a Forge app using Forge CLI in a GitHub Actions workflow.'
+description: 'Deploy and install a Forge app using Forge CLI'
 
 inputs:
   email:
-    description: 'Atlassian account email (unused for now)'
+    description: 'Atlassian account email'
     required: true
   apiToken:
     description: 'Atlassian API token'
@@ -29,23 +29,20 @@ runs:
       run: npm install -g @forge/cli
       shell: bash
 
-    - name: Export Forge API Token
-      run: echo "FORGE_API_TOKEN=${{ inputs.apiToken }}" >> $GITHUB_ENV
+    - name: Set usage-analytics flag to false
+      run: forge settings set usage-analytics false
+      shell: bash
+
+    - name: Create Forge credentials file
+      run: |
+        mkdir -p ~/.forge
+        echo "{\"cli\": {\"tokens\": {\"${{ inputs.email }}\": \"${{ inputs.apiToken }}\"}}}" > ~/.forge/credentials.json
       shell: bash
 
     - name: Deploy Forge app
-      run: forge deploy --environment ${{ inputs.environment }} --non-interactive --api-token
+      run: forge deploy --environment ${{ inputs.environment }} --non-interactive
       shell: bash
-      env:
-        FORGE_API_TOKEN: ${{ inputs.apiToken }}
 
     - name: Install Forge app
-      run: forge install \
-        --product ${{ inputs.product }} \
-        --site ${{ inputs.siteUrl }} \
-        --environment ${{ inputs.environment }} \
-        --non-interactive \
-        --api-token
+      run: forge install --product ${{ inputs.product }} --site ${{ inputs.siteUrl }} --environment ${{ inputs.environment }} --non-interactive
       shell: bash
-      env:
-        FORGE_API_TOKEN: ${{ inputs.apiToken }}
