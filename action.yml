@@ -3,10 +3,10 @@ description: 'Deploy and install a Forge app using Forge CLI in a GitHub Actions
 
 inputs:
   email:
-    description: 'Atlassian account email (unused, for logging or later use)'
+    description: 'Atlassian account email (unused for now)'
     required: true
   apiToken:
-    description: 'Atlassian API token (used for non-interactive login)'
+    description: 'Atlassian API token (used automatically via env variable)'
     required: true
   environment:
     description: 'Forge environment to deploy to (e.g. development, staging, production)'
@@ -32,22 +32,18 @@ runs:
     - name: Set usage-analytics flag to false
       run: forge settings set usage-analytics false
       shell: bash
-
-    - name: Configure Forge environment variables
-      run: |
-        echo "FORGE_EMAIL=${{ inputs.email }}" >> $GITHUB_ENV
-        echo "FORGE_API_TOKEN=${{ inputs.apiToken }}" >> $GITHUB_ENV
-      shell: bash
-
-    - name: Authenticate with Forge
-      run: forge login -u ${{ inputs.email }} -t ${{ inputs.apiToken }}
       env:
         FORGE_API_TOKEN: ${{ inputs.apiToken }}
+
+    - name: Export Forge API Token
       shell: bash
+      run: echo "FORGE_API_TOKEN=${{ inputs.apiToken }}" >> $GITHUB_ENV
 
     - name: Deploy Forge app
       run: forge deploy --environment ${{ inputs.environment }} --non-interactive
       shell: bash
+      env:
+        FORGE_API_TOKEN: ${{ inputs.apiToken }}
 
     - name: Install Forge app
       run: forge install \
@@ -56,3 +52,5 @@ runs:
         --environment ${{ inputs.environment }} \
         --non-interactive
       shell: bash
+      env:
+        FORGE_API_TOKEN: ${{ inputs.apiToken }}
