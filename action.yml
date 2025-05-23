@@ -25,12 +25,6 @@ runs:
       with:
         node-version: '18'
 
-    - name: Install libsecret
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y libsecret-1-0
-      shell: bash
-
     - name: Install Forge CLI
       run: npm install -g @forge/cli
       shell: bash
@@ -39,14 +33,16 @@ runs:
       run: forge settings set usage-analytics false
       shell: bash
 
-    - name: Login to Forge
-      run: forge login -u ${{ inputs.email }} -t ${{ inputs.apiToken }}
-      shell: bash
-
     - name: Deploy Forge app
       run: forge deploy --environment ${{ inputs.environment }} --non-interactive
       shell: bash
+      env:
+        FORGE_EMAIL: ${{ inputs.email }}
+        FORGE_API_TOKEN: ${{ inputs.apiToken }}
 
     - name: Install Forge app
       run: forge install --product ${{ inputs.product }} --site ${{ inputs.siteUrl }} --environment ${{ inputs.environment }} --non-interactive
       shell: bash
+      env:
+        FORGE_EMAIL: ${{ inputs.email }}
+        FORGE_API_TOKEN: ${{ inputs.apiToken }}
