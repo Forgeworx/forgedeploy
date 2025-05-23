@@ -1,0 +1,6 @@
+# LICENSE.txt
+Copyright (c) 2025 Alexander Cevicelow & Forgeworx LLC
+
+All rights reserved.
+
+Unauthorized copying, distribution, modification, or use of this software, via any medium, is strictly prohibited.
