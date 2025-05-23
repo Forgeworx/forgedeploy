@@ -29,6 +29,10 @@ runs:
       run: npm install -g @forge/cli
       shell: bash
 
+    - name: Set usage-analytics flag to false
+      run: forge settings set usage-analytics false
+      shell: bash
+
     - name: Create Forge credentials file
       run: |
         mkdir -p ~/.forge
