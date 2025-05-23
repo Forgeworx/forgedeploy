@@ -36,7 +36,7 @@ runs:
     - name: Create Forge credentials file
       run: |
         mkdir -p ~/.forge
-        echo "{\"cli\": {\"tokens\": {\"${{ inputs.email }}\": \"${{ inputs.apiToken }}\"}}}" > ~/.forge/credentials.json
+        echo "{\"cli\": {\"tokens\": {\"${{ secrets.email }}\": \"${{ secrets.apiToken }}\"}}}" > ~/.forge/credentials.json
       shell: bash
 
     - name: Deploy Forge app
