@@ -35,10 +35,6 @@ runs:
         echo "{\"cli\": {\"tokens\": {\"${{ inputs.email }}\": \"${{ inputs.apiToken }}\"}}}" > ~/.forge/credentials.json
       shell: bash
 
-    - name: Disable analytics prompt (non-TTY safe)
-      run: forge config:set analytics.disabled true
-      shell: bash
-
     - name: Deploy Forge app
       run: forge deploy --environment ${{ inputs.environment }}
       shell: bash
