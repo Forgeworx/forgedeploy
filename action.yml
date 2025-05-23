@@ -29,11 +29,9 @@ runs:
       run: npm install -g @forge/cli
       shell: bash
 
-    - name: Set usage-analytics flag to false
-      run: forge settings set usage-analytics false --api-token
+    - name: Export Forge API Token
+      run: echo "FORGE_API_TOKEN=${{ inputs.apiToken }}" >> $GITHUB_ENV
       shell: bash
-      env:
-        FORGE_API_TOKEN: ${{ inputs.apiToken }}
 
     - name: Deploy Forge app
       run: forge deploy --environment ${{ inputs.environment }} --non-interactive --api-token
