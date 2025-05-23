@@ -25,6 +25,12 @@ runs:
       with:
         node-version: '18'
 
+    - name: Install libsecret
+      run: |
+        sudo apt-get update
+        sudo apt-get install -y libsecret-1-0
+      shell: bash
+
     - name: Install Forge CLI
       run: npm install -g @forge/cli
       shell: bash
