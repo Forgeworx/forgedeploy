@@ -1,12 +1,12 @@
 name: 'ForgeDeploy'
-description: 'Deploy and install a Forge app using Forge CLI'
+description: 'Deploy and install a Forge app using Forge CLI in a GitHub Actions workflow.'
 
 inputs:
   email:
-    description: 'Atlassian account email'
+    description: 'Atlassian account email (unused, for logging or later use)'
     required: true
   apiToken:
-    description: 'Atlassian API token'
+    description: 'Atlassian API token (used for non-interactive login)'
     required: true
   environment:
     description: 'Forge environment to deploy to (e.g. development, staging, production)'
@@ -33,10 +33,10 @@ runs:
       run: forge settings set usage-analytics false
       shell: bash
 
-    - name: Create Forge credentials file
-      run: |
-        mkdir -p ~/.forge
-        echo "{\"cli\": {\"tokens\": {\"${{ inputs.email }}\": \"${{ inputs.apiToken }}\"}}}" > ~/.forge/credentials.json
+    - name: Authenticate with Forge
+      run: forge login --non-interactive --api-token
+      env:
+        FORGE_API_TOKEN: ${{ inputs.apiToken }}
       shell: bash
 
     - name: Deploy Forge app
@@ -44,5 +44,9 @@ runs:
       shell: bash
 
     - name: Install Forge app
-      run: forge install --product ${{ inputs.product }} --site ${{ inputs.siteUrl }} --environment ${{ inputs.environment }} --non-interactive
+      run: forge install \
+        --product ${{ inputs.product }} \
+        --site ${{ inputs.siteUrl }} \
+        --environment ${{ inputs.environment }} \
+        --non-interactive
       shell: bash
