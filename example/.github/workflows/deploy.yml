@@ -5,27 +5,27 @@ on:
     inputs:
       environment:
         required: true
-        description: 'Forge environment (e.g. development)'
+        description: 'Forge environment'
       product:
         required: true
-        description: 'Product (jira or confluence)'
+        description: 'Product'
       isCustomApp:
         type: boolean
         required: false
         default: false
-        description: 'Is this a custom app in a subdirectory?'
+        description: 'Is this a custom app in a subdirectory'
       customAppPath:
         required: false
         default: 'static/hello-world'
-        description: 'Relative path to the app if isCustomApp is true'
+        description: 'Relative path to custom app'
       installToSite:
         type: boolean
         required: false
-        default: true
-        description: 'Should this workflow also run `forge install`?'
+        default: false
+        description: 'Install app to Atlassian site?'
       siteUrl:
         required: false
-        description: 'Your Atlassian site URL (e.g. yourcompany.atlassian.net)'
+        description: 'Your Atlassian site URL'
 
 jobs:
   deploy:
