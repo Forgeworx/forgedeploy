@@ -7,7 +7,7 @@ on:
         required: true
         description: 'Forge environment (e.g. development)'
       siteUrl:
-        required: true
+        required: false
         description: 'Your Atlassian site URL (e.g. yourcompany.atlassian.net)'
       product:
         required: true
@@ -24,6 +24,14 @@ on:
         required: false
         default: 'static/hello-world'
         description: 'Relative path to the app if isCustomApp is yes'
+      installToSite:
+        required: false
+        default: 'yes'
+        type: choice
+        description: 'Should this workflow also run `forge install`?'
+        options:
+          - yes
+          - no
 
 jobs:
   deploy:
@@ -31,7 +39,7 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: Forgeworx/forgedeploy@dev-02-custom-apps
+      - uses: Forgeworx/forgedeploy@dev-03-install-or-deploy
         with:
           email: ${{ secrets.FORGE_EMAIL }}
           apiToken: ${{ secrets.FORGE_API_TOKEN }}
@@ -40,3 +48,4 @@ jobs:
           product: ${{ github.event.inputs.product }}
           isCustomApp: ${{ github.event.inputs.isCustomApp }}
           customAppPath: ${{ github.event.inputs.customAppPath }}
+          installToSite: ${{ github.event.inputs.installToSite }}

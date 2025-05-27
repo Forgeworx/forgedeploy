@@ -1,5 +1,5 @@
 name: "ForgeDeploy"
-description: "Deploy and install a Forge app using Forge CLI"
+description: "Deploy and optionally install a Forge app using Forge CLI"
 
 inputs:
   email:
@@ -13,10 +13,14 @@ inputs:
     required: true
   siteUrl:
     description: "Atlassian site URL (e.g. yourcompany.atlassian.net)"
-    required: true
+    required: false
   product:
     description: "Atlassian product to deploy to (e.g. jira, confluence)"
     required: true
+  installToSite:
+    description: "Set to false to skip 'forge install' (e.g. if app is already installed)"
+    required: false
+    default: "true"
   isCustomApp:
     description: "yes or true if this is a custom Forge app in a subdirectory"
     required: false
@@ -74,10 +78,14 @@ runs:
         FORGE_EMAIL: ${{ inputs.email }}
         FORGE_API_TOKEN: ${{ inputs.apiToken }}
 
-    - name: Install Forge app
+    - name: Install Forge app (optional)
       run: |
-        echo "Installing app to site ${{ inputs.siteUrl }} on product ${{ inputs.product }}"
-        forge install --product ${{ inputs.product }} --site ${{ inputs.siteUrl }} --environment ${{ inputs.environment }} --non-interactive
+        if [[ "${{ inputs.installToSite }}" == "yes" || "${{ inputs.installToSite }}" == "true" ]]; then
+          echo "Installing app to site ${{ inputs.siteUrl }} on product ${{ inputs.product }}"
+          forge install --product ${{ inputs.product }} --site ${{ inputs.siteUrl }} --environment ${{ inputs.environment }} --non-interactive
+        else
+          echo "Skipping forge install as installToSite is false"
+        fi
       shell: bash
       env:
         FORGE_EMAIL: ${{ inputs.email }}
