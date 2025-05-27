@@ -1,0 +1,52 @@
+name: 'ForgeDeploy'
+description: 'Deploy and install a Forge app using Forge CLI'
+
+inputs:
+  email:
+    description: 'Atlassian account email'
+    required: true
+  apiToken:
+    description: 'Atlassian API token'
+    required: true
+  environment:
+    description: 'Forge environment to deploy to (e.g. development, staging, production)'
+    required: true
+  siteUrl:
+    description: 'Atlassian site URL (e.g. yourcompany.atlassian.net)'
+    required: true
+  product:
+    description: 'Atlassian product to deploy to (e.g. jira, confluence)'
+    required: true
+
+runs:
+  using: 'composite'
+  steps:
+    - uses: actions/setup-node@v3
+      with:
+        node-version: '18'
+
+    - name: Install Forge CLI
+      run: npm install -g @forge/cli
+      shell: bash
+
+    - name: Install dependencies
+      run: npm install
+      shell: bash
+
+    - name: Set usage-analytics flag to false
+      run: forge settings set usage-analytics false
+      shell: bash
+
+    - name: Deploy Forge app
+      run: forge deploy --environment ${{ inputs.environment }} --non-interactive
+      shell: bash
+      env:
+        FORGE_EMAIL: ${{ inputs.email }}
+        FORGE_API_TOKEN: ${{ inputs.apiToken }}
+
+    - name: Install Forge app
+      run: forge install --product ${{ inputs.product }} --site ${{ inputs.siteUrl }} --environment ${{ inputs.environment }} --non-interactive
+      shell: bash
+      env:
+        FORGE_EMAIL: ${{ inputs.email }}
+        FORGE_API_TOKEN: ${{ inputs.apiToken }}
