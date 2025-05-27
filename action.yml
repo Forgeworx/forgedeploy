@@ -1,37 +1,37 @@
-name: 'ForgeDeploy'
-description: 'Deploy and install a Forge app using Forge CLI'
+name: "ForgeDeploy"
+description: "Deploy and install a Forge app using Forge CLI"
 
 inputs:
   email:
-    description: 'Atlassian account email'
+    description: "Atlassian account email"
     required: true
   apiToken:
-    description: 'Atlassian API token'
+    description: "Atlassian API token"
     required: true
   environment:
-    description: 'Forge environment to deploy to (e.g. development, staging, production)'
+    description: "Forge environment to deploy to (e.g. development, staging, production)"
     required: true
   siteUrl:
-    description: 'Atlassian site URL (e.g. yourcompany.atlassian.net)'
+    description: "Atlassian site URL (e.g. yourcompany.atlassian.net)"
     required: true
   product:
-    description: 'Atlassian product to deploy to (e.g. jira, confluence)'
+    description: "Atlassian product to deploy to (e.g. jira, confluence)"
     required: true
   isCustomApp:
-    description: 'Set to true if this is a custom Forge app in a subdirectory'
+    description: "yes if this is a custom Forge app in a subdirectory"
     required: false
-    default: 'false'
+    default: "no"
   customAppPath:
-    description: 'Path to custom Forge app (relative to repo root)'
+    description: "Path to custom Forge app (relative to repo root)"
     required: false
-    default: '.'
+    default: "."
 
 runs:
-  using: 'composite'
+  using: "composite"
   steps:
     - uses: actions/setup-node@v3
       with:
-        node-version: '18'
+        node-version: "18"
 
     - name: Install Forge CLI
       run: npm install -g @forge/cli
@@ -39,7 +39,7 @@ runs:
 
     - name: Change to app directory if custom app
       run: |
-        if [[ "${{ inputs.isCustomApp }}" == "true" ]]; then
+        if [[ "${{ inputs.isCustomApp }}" == "yes" ]]; then
           echo "Changing to custom app path: ${{ inputs.customAppPath }}"
           cd ${{ inputs.customAppPath }}
         fi
@@ -47,7 +47,7 @@ runs:
 
     - name: Install dependencies
       run: |
-        if [[ "${{ inputs.isCustomApp }}" == "true" ]]; then
+        if [[ "${{ inputs.isCustomApp }}" == "yes" ]]; then
           cd ${{ inputs.customAppPath }}
         fi
         npm install
@@ -55,7 +55,7 @@ runs:
 
     - name: Set usage-analytics flag to false
       run: |
-        if [[ "${{ inputs.isCustomApp }}" == "true" ]]; then
+        if [[ "${{ inputs.isCustomApp }}" == "yes" ]]; then
           cd ${{ inputs.customAppPath }}
         fi
         forge settings set usage-analytics false
@@ -63,7 +63,7 @@ runs:
 
     - name: Deploy Forge app
       run: |
-        if [[ "${{ inputs.isCustomApp }}" == "true" ]]; then
+        if [[ "${{ inputs.isCustomApp }}" == "yes" ]]; then
           cd ${{ inputs.customAppPath }}
         fi
         forge deploy --environment ${{ inputs.environment }} --non-interactive
@@ -74,7 +74,7 @@ runs:
 
     - name: Install Forge app
       run: |
-        if [[ "${{ inputs.isCustomApp }}" == "true" ]]; then
+        if [[ "${{ inputs.isCustomApp }}" == "yes" ]]; then
           cd ${{ inputs.customAppPath }}
         fi
         forge install --product ${{ inputs.product }} --site ${{ inputs.siteUrl }} --environment ${{ inputs.environment }} --non-interactive
