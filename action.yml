@@ -37,10 +37,16 @@ runs:
       run: npm install -g @forge/cli
       shell: bash
 
-    - name: Install dependencies (custom UI)
+    - name: Install root backend dependencies (Forge backend)
+      run: |
+        echo "Installing backend dependencies in root"
+        npm install
+      shell: bash
+
+    - name: Install frontend dependencies (custom UI)
       run: |
         if [[ "${{ inputs.isCustomApp }}" == "yes" || "${{ inputs.isCustomApp }}" == "true" ]]; then
-          echo "Installing dependencies in ${{ inputs.customAppPath }}"
+          echo "Installing frontend dependencies in ${{ inputs.customAppPath }}"
           cd ${{ inputs.customAppPath }}
           npm install
         fi
@@ -55,11 +61,11 @@ runs:
         fi
       shell: bash
 
-    - name: Set usage-analytics flag to false
+    - name: Disable usage analytics
       run: forge settings set usage-analytics false
       shell: bash
 
-    - name: Deploy Forge app (from root with manifest.yml)
+    - name: Deploy Forge app
       run: |
         echo "Deploying app from root directory"
         forge deploy --environment ${{ inputs.environment }} --non-interactive
@@ -68,7 +74,7 @@ runs:
         FORGE_EMAIL: ${{ inputs.email }}
         FORGE_API_TOKEN: ${{ inputs.apiToken }}
 
-    - name: Install Forge app (from root with manifest.yml)
+    - name: Install Forge app
       run: |
         echo "Installing app to site ${{ inputs.siteUrl }} on product ${{ inputs.product }}"
         forge install --product ${{ inputs.product }} --site ${{ inputs.siteUrl }} --environment ${{ inputs.environment }} --non-interactive
