@@ -16,7 +16,6 @@ on:
         description: 'Use custom subdirectory?'
       customAppPath:
         required: false
-        default: 'static/hello-world'
         description: 'Relative path to custom app'
       installToSite:
         type: boolean
