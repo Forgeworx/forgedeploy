@@ -37,20 +37,21 @@ runs:
       run: npm install -g @forge/cli
       shell: bash
 
-    - name: Change to app directory if custom app
-      run: |
-        if [[ "${{ inputs.isCustomApp }}" == "yes" ]]; then
-          echo "Changing to custom app path: ${{ inputs.customAppPath }}"
-          cd ${{ inputs.customAppPath }}
-        fi
-      shell: bash
-
     - name: Install dependencies
       run: |
         if [[ "${{ inputs.isCustomApp }}" == "yes" ]]; then
+          echo "Installing dependencies in ${{ inputs.customAppPath }}"
           cd ${{ inputs.customAppPath }}
         fi
         npm install
+      shell: bash
+
+    - name: Build Forge custom UI app
+      if: inputs.isCustomApp == 'yes'
+      run: |
+        echo "Building custom UI app in ${{ inputs.customAppPath }}"
+        cd ${{ inputs.customAppPath }}
+        npm run build
       shell: bash
 
     - name: Set usage-analytics flag to false
