@@ -22,7 +22,7 @@ on:
           - yes
       customAppPath:
         required: false
-        default: '.'
+        default: 'static/hello-world'
         description: 'Relative path to the app if isCustomApp is yes'
 
 jobs:
