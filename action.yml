@@ -44,18 +44,11 @@ runs:
       run: npm install
       shell: bash
 
-    - name: Fail if customAppPath is set but isCustomApp is false
-      if: inputs.isCustomApp != 'true' && inputs.customAppPath != ''
-      run: |
-        echo "::error::customAppPath is set but isCustomApp is false. Set isCustomApp: true to use a subdirectory."
-        exit 1
-      shell: bash
-
     - name: Check for manifest.yml (custom app)
       if: inputs.isCustomApp == 'true'
       run: |
         if [ ! -f "${CUSTOM_APP_PATH}/manifest.yml" ]; then
-          echo "::error::manifest.yml not found in custom app path: ${CUSTOM_APP_PATH}"
+          echo "manifest.yml not found in custom app path: ${CUSTOM_APP_PATH}"
           exit 1
         fi
       shell: bash
@@ -66,7 +59,7 @@ runs:
       if: inputs.isCustomApp != 'true'
       run: |
         if [ ! -f "manifest.yml" ]; then
-          echo "::error::manifest.yml not found at repo root"
+          echo "manifest.yml not found at repo root"
           exit 1
         fi
       shell: bash
