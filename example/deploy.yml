@@ -1,0 +1,28 @@
+name: Deploy Forge App
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        required: true
+        description: 'Forge environment (e.g. development)'
+      siteUrl:
+        required: true
+        description: 'Your Atlassian site URL (e.g. yourcompany.atlassian.net)'
+      product:
+        required: true
+        description: 'Product (jira or confluence)'
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - uses: Forgeworx/forgedeploy@main
+        with:
+          email: ${{ secrets.FORGE_EMAIL }}
+          apiToken: ${{ secrets.FORGE_API_TOKEN }}
+          environment: ${{ github.event.inputs.environment }}
+          siteUrl: ${{ github.event.inputs.siteUrl }}
+          product: ${{ github.event.inputs.product }}
