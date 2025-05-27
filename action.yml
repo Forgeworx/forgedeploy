@@ -67,7 +67,6 @@ runs:
         ENVIRONMENT: ${{ inputs.environment }}
         FORGE_EMAIL: ${{ inputs.email }}
         FORGE_API_TOKEN: ${{ inputs.apiToken }}
-      working-directory: ${{ inputs.isCustomApp == 'true' && inputs.customAppPath || '.' }}
 
     - name: Install Forge app (optional)
       if: inputs.installToSite != 'false'
@@ -85,4 +84,3 @@ runs:
         ENVIRONMENT: ${{ inputs.environment }}
         FORGE_EMAIL: ${{ inputs.email }}
         FORGE_API_TOKEN: ${{ inputs.apiToken }}
-      working-directory: ${{ inputs.isCustomApp == 'true' && inputs.customAppPath || '.' }}
