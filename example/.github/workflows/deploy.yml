@@ -6,32 +6,26 @@ on:
       environment:
         required: true
         description: 'Forge environment (e.g. development)'
-      siteUrl:
-        required: false
-        description: 'Your Atlassian site URL (e.g. yourcompany.atlassian.net)'
       product:
         required: true
         description: 'Product (jira or confluence)'
       isCustomApp:
+        type: boolean
         required: false
-        default: 'no'
-        type: choice
+        default: false
         description: 'Is this a custom app in a subdirectory?'
-        options:
-          - no
-          - yes
       customAppPath:
         required: false
         default: 'static/hello-world'
-        description: 'Relative path to the app if isCustomApp is yes'
+        description: 'Relative path to the app if isCustomApp is true'
       installToSite:
+        type: boolean
         required: false
-        default: 'yes'
-        type: choice
+        default: true
         description: 'Should this workflow also run `forge install`?'
-        options:
-          - yes
-          - no
+      siteUrl:
+        required: false
+        description: 'Your Atlassian site URL (e.g. yourcompany.atlassian.net)'
 
 jobs:
   deploy:
@@ -44,8 +38,8 @@ jobs:
           email: ${{ secrets.FORGE_EMAIL }}
           apiToken: ${{ secrets.FORGE_API_TOKEN }}
           environment: ${{ github.event.inputs.environment }}
-          siteUrl: ${{ github.event.inputs.siteUrl }}
           product: ${{ github.event.inputs.product }}
           isCustomApp: ${{ github.event.inputs.isCustomApp }}
           customAppPath: ${{ github.event.inputs.customAppPath }}
           installToSite: ${{ github.event.inputs.installToSite }}
+          siteUrl: ${{ github.event.inputs.siteUrl }}
