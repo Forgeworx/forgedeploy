@@ -12,6 +12,18 @@ on:
       product:
         required: true
         description: 'Product (jira or confluence)'
+      isCustomApp:
+        required: false
+        default: 'no'
+        type: choice
+        description: 'Is this a custom app in a subdirectory?'
+        options:
+          - no
+          - yes
+      customAppPath:
+        required: false
+        default: 'static/hello-world'
+        description: 'Relative path to the app if isCustomApp is yes'
 
 jobs:
   deploy:
@@ -19,10 +31,12 @@ jobs:
     steps:
       - uses: actions/checkout@v3
 
-      - uses: Forgeworx/forgedeploy@main
+      - uses: Forgeworx/forgedeploy@dev-02-custom-apps
         with:
           email: ${{ secrets.FORGE_EMAIL }}
           apiToken: ${{ secrets.FORGE_API_TOKEN }}
           environment: ${{ github.event.inputs.environment }}
           siteUrl: ${{ github.event.inputs.siteUrl }}
           product: ${{ github.event.inputs.product }}
+          isCustomApp: ${{ github.event.inputs.isCustomApp }}
+          customAppPath: ${{ github.event.inputs.customAppPath }}
