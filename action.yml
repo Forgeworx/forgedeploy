@@ -37,48 +37,40 @@ runs:
       run: npm install -g @forge/cli
       shell: bash
 
-    - name: Install dependencies
+    - name: Install dependencies (custom UI)
       run: |
         if [[ "${{ inputs.isCustomApp }}" == "yes" || "${{ inputs.isCustomApp }}" == "true" ]]; then
           echo "Installing dependencies in ${{ inputs.customAppPath }}"
           cd ${{ inputs.customAppPath }}
+          npm install
         fi
-        npm install
       shell: bash
 
-    - name: Build Forge custom UI app
+    - name: Build frontend (custom UI)
       run: |
         if [[ "${{ inputs.isCustomApp }}" == "yes" || "${{ inputs.isCustomApp }}" == "true" ]]; then
-          echo "Building app in ${{ inputs.customAppPath }}"
+          echo "Building frontend in ${{ inputs.customAppPath }}"
           cd ${{ inputs.customAppPath }}
           npm run build
         fi
       shell: bash
 
     - name: Set usage-analytics flag to false
-      run: |
-        if [[ "${{ inputs.isCustomApp }}" == "yes" || "${{ inputs.isCustomApp }}" == "true" ]]; then
-          cd ${{ inputs.customAppPath }}
-        fi
-        forge settings set usage-analytics false
+      run: forge settings set usage-analytics false
       shell: bash
 
-    - name: Deploy Forge app
+    - name: Deploy Forge app (from root with manifest.yml)
       run: |
-        if [[ "${{ inputs.isCustomApp }}" == "yes" || "${{ inputs.isCustomApp }}" == "true" ]]; then
-          cd ${{ inputs.customAppPath }}
-        fi
+        echo "Deploying app from root directory"
         forge deploy --environment ${{ inputs.environment }} --non-interactive
       shell: bash
       env:
         FORGE_EMAIL: ${{ inputs.email }}
         FORGE_API_TOKEN: ${{ inputs.apiToken }}
 
-    - name: Install Forge app
+    - name: Install Forge app (from root with manifest.yml)
       run: |
-        if [[ "${{ inputs.isCustomApp }}" == "yes" || "${{ inputs.isCustomApp }}" == "true" ]]; then
-          cd ${{ inputs.customAppPath }}
-        fi
+        echo "Installing app to site ${{ inputs.siteUrl }} on product ${{ inputs.product }}"
         forge install --product ${{ inputs.product }} --site ${{ inputs.siteUrl }} --environment ${{ inputs.environment }} --non-interactive
       shell: bash
       env:
