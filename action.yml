@@ -40,28 +40,12 @@ runs:
       run: npm install -g @forge/cli
       shell: bash
 
+    - name: Disable Forge usage analytics
+      run: forge settings set usage-analytics false
+      shell: bash
+
     - name: Install root backend dependencies
       run: npm install
-      shell: bash
-
-    - name: Check for manifest.yml (custom app)
-      if: inputs.isCustomApp == 'true'
-      run: |
-        if [ ! -f "${CUSTOM_APP_PATH}/manifest.yml" ]; then
-          echo "manifest.yml not found in custom app path: ${CUSTOM_APP_PATH}"
-          exit 1
-        fi
-      shell: bash
-      env:
-        CUSTOM_APP_PATH: ${{ inputs.customAppPath }}
-
-    - name: Check for manifest.yml (non-custom app)
-      if: inputs.isCustomApp != 'true'
-      run: |
-        if [ ! -f "manifest.yml" ]; then
-          echo "manifest.yml not found at repo root"
-          exit 1
-        fi
       shell: bash
 
     - name: Install frontend dependencies (custom app only)
@@ -75,11 +59,6 @@ runs:
       run: npm run build
       shell: bash
       working-directory: ${{ inputs.customAppPath }}
-
-    - name: Disable Forge usage analytics
-      run: forge settings set usage-analytics false
-      shell: bash
-      working-directory: ${{ inputs.isCustomApp == 'true' && inputs.customAppPath || '.' }}
 
     - name: Deploy Forge app
       run: forge deploy --environment "${ENVIRONMENT}" --non-interactive
