@@ -18,7 +18,7 @@ inputs:
     description: "Atlassian product to deploy to (e.g. jira, confluence)"
     required: true
   isCustomApp:
-    description: "yes if this is a custom Forge app in a subdirectory"
+    description: "yes or true if this is a custom Forge app in a subdirectory"
     required: false
     default: "no"
   customAppPath:
@@ -39,7 +39,7 @@ runs:
 
     - name: Install dependencies
       run: |
-        if [[ "${{ inputs.isCustomApp }}" == "yes" ]]; then
+        if [[ "${{ inputs.isCustomApp }}" == "yes" || "${{ inputs.isCustomApp }}" == "true" ]]; then
           echo "Installing dependencies in ${{ inputs.customAppPath }}"
           cd ${{ inputs.customAppPath }}
         fi
@@ -47,16 +47,17 @@ runs:
       shell: bash
 
     - name: Build Forge custom UI app
-      if: inputs.isCustomApp == 'yes'
       run: |
-        echo "Building custom UI app in ${{ inputs.customAppPath }}"
-        cd ${{ inputs.customAppPath }}
-        npm run build
+        if [[ "${{ inputs.isCustomApp }}" == "yes" || "${{ inputs.isCustomApp }}" == "true" ]]; then
+          echo "Building app in ${{ inputs.customAppPath }}"
+          cd ${{ inputs.customAppPath }}
+          npm run build
+        fi
       shell: bash
 
     - name: Set usage-analytics flag to false
       run: |
-        if [[ "${{ inputs.isCustomApp }}" == "yes" ]]; then
+        if [[ "${{ inputs.isCustomApp }}" == "yes" || "${{ inputs.isCustomApp }}" == "true" ]]; then
           cd ${{ inputs.customAppPath }}
         fi
         forge settings set usage-analytics false
@@ -64,7 +65,7 @@ runs:
 
     - name: Deploy Forge app
       run: |
-        if [[ "${{ inputs.isCustomApp }}" == "yes" ]]; then
+        if [[ "${{ inputs.isCustomApp }}" == "yes" || "${{ inputs.isCustomApp }}" == "true" ]]; then
           cd ${{ inputs.customAppPath }}
         fi
         forge deploy --environment ${{ inputs.environment }} --non-interactive
@@ -75,7 +76,7 @@ runs:
 
     - name: Install Forge app
       run: |
-        if [[ "${{ inputs.isCustomApp }}" == "yes" ]]; then
+        if [[ "${{ inputs.isCustomApp }}" == "yes" || "${{ inputs.isCustomApp }}" == "true" ]]; then
           cd ${{ inputs.customAppPath }}
         fi
         forge install --product ${{ inputs.product }} --site ${{ inputs.siteUrl }} --environment ${{ inputs.environment }} --non-interactive
