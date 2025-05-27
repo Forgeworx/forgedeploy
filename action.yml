@@ -28,7 +28,6 @@ inputs:
   customAppPath:
     description: "Path to custom Forge app (relative to repo root)"
     required: false
-    default: "."
 
 runs:
   using: "composite"
@@ -42,55 +41,63 @@ runs:
       shell: bash
 
     - name: Install root backend dependencies
-      run: |
-        npm install
+      run: npm install
       shell: bash
 
-    - name: Install frontend dependencies (custom UI)
+    - name: Check for manifest.yml (custom app)
+      if: inputs.isCustomApp == 'true'
       run: |
-        IS_CUSTOM_APP=${IS_CUSTOM_APP:-false}
-        CUSTOM_APP_PATH=${CUSTOM_APP_PATH:-.}
-        if [[ "$IS_CUSTOM_APP" == "true" ]]; then
-          cd "$CUSTOM_APP_PATH"
-          npm install
+        if [ ! -f "${CUSTOM_APP_PATH}/manifest.yml" ]; then
+          echo "manifest.yml not found in custom app path: ${CUSTOM_APP_PATH}"
+          exit 1
         fi
       shell: bash
       env:
-        IS_CUSTOM_APP: ${{ inputs.isCustomApp }}
         CUSTOM_APP_PATH: ${{ inputs.customAppPath }}
 
-    - name: Build frontend (custom UI)
+    - name: Check for manifest.yml (non-custom app)
+      if: inputs.isCustomApp != 'true'
       run: |
-        IS_CUSTOM_APP=${IS_CUSTOM_APP:-false}
-        CUSTOM_APP_PATH=${CUSTOM_APP_PATH:-.}
-        if [[ "$IS_CUSTOM_APP" == "true" ]]; then
-          cd "$CUSTOM_APP_PATH"
-          npm run build
+        if [ ! -f "manifest.yml" ]; then
+          echo "manifest.yml not found at repo root"
+          exit 1
         fi
       shell: bash
-      env:
-        IS_CUSTOM_APP: ${{ inputs.isCustomApp }}
-        CUSTOM_APP_PATH: ${{ inputs.customAppPath }}
 
-    - name: Disable usage analytics
+    - name: Install frontend dependencies (custom app only)
+      if: inputs.isCustomApp == 'true'
+      run: npm install
+      shell: bash
+      working-directory: ${{ inputs.customAppPath }}
+
+    - name: Build frontend (custom app only)
+      if: inputs.isCustomApp == 'true'
+      run: npm run build
+      shell: bash
+      working-directory: ${{ inputs.customAppPath }}
+
+    - name: Disable Forge usage analytics
       run: forge settings set usage-analytics false
       shell: bash
+      working-directory: ${{ inputs.isCustomApp == 'true' && inputs.customAppPath || '.' }}
 
     - name: Deploy Forge app
-      run: |
-        forge deploy --environment "${ENVIRONMENT}" --non-interactive
+      run: forge deploy --environment "${ENVIRONMENT}" --non-interactive
       shell: bash
       env:
         ENVIRONMENT: ${{ inputs.environment }}
         FORGE_EMAIL: ${{ inputs.email }}
         FORGE_API_TOKEN: ${{ inputs.apiToken }}
+      working-directory: ${{ inputs.isCustomApp == 'true' && inputs.customAppPath || '.' }}
 
     - name: Install Forge app (optional)
+      if: inputs.installToSite != 'false'
       run: |
-        INSTALL_TO_SITE=${INSTALL_TO_SITE:-true}
-        if [[ "$INSTALL_TO_SITE" == "true" ]]; then
-          forge install --product "${PRODUCT}" --site "${SITE_URL}" --environment "${ENVIRONMENT}" --non-interactive
-        fi
+        forge install \
+          --product "${PRODUCT}" \
+          --site "${SITE_URL}" \
+          --environment "${ENVIRONMENT}" \
+          --non-interactive
       shell: bash
       env:
         INSTALL_TO_SITE: ${{ inputs.installToSite }}
@@ -99,3 +106,4 @@ runs:
         ENVIRONMENT: ${{ inputs.environment }}
         FORGE_EMAIL: ${{ inputs.email }}
         FORGE_API_TOKEN: ${{ inputs.apiToken }}
+      working-directory: ${{ inputs.isCustomApp == 'true' && inputs.customAppPath || '.' }}

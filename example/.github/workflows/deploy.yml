@@ -38,7 +38,7 @@ jobs:
           apiToken: ${{ secrets.FORGE_API_TOKEN }}
           environment: ${{ github.event.inputs.environment }}
           product: ${{ github.event.inputs.product }}
-          isCustomApp: ${{ github.event.inputs.isCustomApp }}
-          customAppPath: ${{ github.event.inputs.customAppPath }}
-          installToSite: ${{ github.event.inputs.installToSite }}
+          isCustomApp: ${{ github.event.inputs.isCustomApp == true && 'true' || 'false' }}
+          customAppPath: ${{ github.event.inputs.customAppPath || '.' }}
+          installToSite: ${{ github.event.inputs.installToSite == true && 'true' || 'false' }}
           siteUrl: ${{ github.event.inputs.siteUrl }}
