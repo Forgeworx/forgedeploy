@@ -11,9 +11,16 @@ inputs:
   environment:
     description: "Forge environment to deploy to (e.g. development, staging, production)"
     required: true
+  siteUrl:
+    description: "Atlassian site URL (e.g. yourcompany.atlassian.net)"
+    required: false
   product:
     description: "Atlassian product to deploy to (e.g. jira, confluence)"
     required: true
+  installToSite:
+    description: "Set to false to skip 'forge install' (e.g. if app is already installed)"
+    required: false
+    default: "true"
   isCustomApp:
     description: "Set to true if this is a custom Forge app in a subdirectory"
     required: false
@@ -22,14 +29,6 @@ inputs:
     description: "Path to custom Forge app (relative to repo root)"
     required: false
     default: "."
-  installToSite:
-    description: "Set to false to skip 'forge install' (e.g. if app is already installed)"
-    required: false
-    default: "true"
-  siteUrl:
-    description: "Atlassian site URL (e.g. yourcompany.atlassian.net)"
-    required: false
-    default: "https://yourcompany.atlassian.net"
 
 runs:
   using: "composite"
@@ -52,7 +51,7 @@ runs:
       run: |
         if [[ "${{ inputs.isCustomApp }}" == "true" ]]; then
           echo "Installing frontend dependencies in ${{ inputs.customAppPath }}"
-          cd ${{ inputs.customAppPath }}
+          cd "${{ inputs.customAppPath }}"
           npm install
         fi
       shell: bash
@@ -61,7 +60,7 @@ runs:
       run: |
         if [[ "${{ inputs.isCustomApp }}" == "true" ]]; then
           echo "Building frontend in ${{ inputs.customAppPath }}"
-          cd ${{ inputs.customAppPath }}
+          cd "${{ inputs.customAppPath }}"
           npm run build
         fi
       shell: bash
@@ -73,7 +72,7 @@ runs:
     - name: Deploy Forge app
       run: |
         echo "Deploying app from root directory"
-        forge deploy --environment ${{ inputs.environment }} --non-interactive
+        forge deploy --environment "${{ inputs.environment }}" --non-interactive
       shell: bash
       env:
         FORGE_EMAIL: ${{ inputs.email }}
@@ -83,7 +82,7 @@ runs:
       run: |
         if [[ "${{ inputs.installToSite }}" == "true" ]]; then
           echo "Installing app to site ${{ inputs.siteUrl }} on product ${{ inputs.product }}"
-          forge install --product ${{ inputs.product }} --site ${{ inputs.siteUrl }} --environment ${{ inputs.environment }} --non-interactive
+          forge install --product "${{ inputs.product }}" --site "${{ inputs.siteUrl }}" --environment "${{ inputs.environment }}" --non-interactive
         else
           echo "Skipping forge install as installToSite is false"
         fi
