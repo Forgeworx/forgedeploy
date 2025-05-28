@@ -1,5 +1,5 @@
 name: "ForgeDeploy"
-description: "Deploy and install a Forge app using Forge CLI"
+description: "Deploy and optionally install a Forge app using Forge CLI"
 
 inputs:
   email:
@@ -13,18 +13,21 @@ inputs:
     required: true
   siteUrl:
     description: "Atlassian site URL (e.g. yourcompany.atlassian.net)"
-    required: true
+    required: false
   product:
     description: "Atlassian product to deploy to (e.g. jira, confluence)"
     required: true
-  isCustomApp:
-    description: "yes or true if this is a custom Forge app in a subdirectory"
+  installToSite:
+    description: "Set to false to skip 'forge install' (e.g. if app is already installed)"
     required: false
-    default: "no"
+    default: "true"
+  isCustomApp:
+    description: "Set to true if this is a custom Forge app in a subdirectory"
+    required: false
+    default: "false"
   customAppPath:
     description: "Path to custom Forge app (relative to repo root)"
     required: false
-    default: "."
 
 runs:
   using: "composite"
@@ -37,48 +40,47 @@ runs:
       run: npm install -g @forge/cli
       shell: bash
 
-    - name: Install root backend dependencies (Forge backend)
-      run: |
-        echo "Installing backend dependencies in root"
-        npm install
-      shell: bash
-
-    - name: Install frontend dependencies (custom UI)
-      run: |
-        if [[ "${{ inputs.isCustomApp }}" == "yes" || "${{ inputs.isCustomApp }}" == "true" ]]; then
-          echo "Installing frontend dependencies in ${{ inputs.customAppPath }}"
-          cd ${{ inputs.customAppPath }}
-          npm install
-        fi
-      shell: bash
-
-    - name: Build frontend (custom UI)
-      run: |
-        if [[ "${{ inputs.isCustomApp }}" == "yes" || "${{ inputs.isCustomApp }}" == "true" ]]; then
-          echo "Building frontend in ${{ inputs.customAppPath }}"
-          cd ${{ inputs.customAppPath }}
-          npm run build
-        fi
-      shell: bash
-
-    - name: Disable usage analytics
+    - name: Disable Forge usage analytics
       run: forge settings set usage-analytics false
       shell: bash
 
+    - name: Install root backend dependencies
+      run: npm install
+      shell: bash
+
+    - name: Install frontend dependencies (custom app only)
+      if: inputs.isCustomApp == 'true'
+      run: npm install
+      shell: bash
+      working-directory: ${{ inputs.customAppPath }}
+
+    - name: Build frontend (custom app only)
+      if: inputs.isCustomApp == 'true'
+      run: npm run build
+      shell: bash
+      working-directory: ${{ inputs.customAppPath }}
+
     - name: Deploy Forge app
-      run: |
-        echo "Deploying app from root directory"
-        forge deploy --environment ${{ inputs.environment }} --non-interactive
+      run: forge deploy --environment "${ENVIRONMENT}" --non-interactive
       shell: bash
       env:
+        ENVIRONMENT: ${{ inputs.environment }}
         FORGE_EMAIL: ${{ inputs.email }}
         FORGE_API_TOKEN: ${{ inputs.apiToken }}
 
-    - name: Install Forge app
+    - name: Install Forge app (optional)
+      if: inputs.installToSite != 'false'
       run: |
-        echo "Installing app to site ${{ inputs.siteUrl }} on product ${{ inputs.product }}"
-        forge install --product ${{ inputs.product }} --site ${{ inputs.siteUrl }} --environment ${{ inputs.environment }} --non-interactive
+        forge install \
+          --product "${PRODUCT}" \
+          --site "${SITE_URL}" \
+          --environment "${ENVIRONMENT}" \
+          --non-interactive
       shell: bash
       env:
+        INSTALL_TO_SITE: ${{ inputs.installToSite }}
+        PRODUCT: ${{ inputs.product }}
+        SITE_URL: ${{ inputs.siteUrl }}
+        ENVIRONMENT: ${{ inputs.environment }}
         FORGE_EMAIL: ${{ inputs.email }}
         FORGE_API_TOKEN: ${{ inputs.apiToken }}

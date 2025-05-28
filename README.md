@@ -41,30 +41,3 @@ Generate your API token here: [https://id.atlassian.com/manage/api-tokens](https
 ## 📦 Example Usage
 
 Create `.github/workflows/deploy.yml` in your Forge app repo:
-
-```yaml
-name: Deploy Forge App
-
-on:
-  workflow_dispatch:
-    inputs:
-      environment:
-        required: true
-      siteUrl:
-        required: true
-      product:
-        required: true
-
-jobs:
-  deploy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-
-      - uses: your-org/forgedeploy@v1
-        with:
-          email: ${{ secrets.FORGE_EMAIL }}
-          apiToken: ${{ secrets.FORGE_API_TOKEN }}
-          environment: ${{ github.event.inputs.environment }}
-          siteUrl: ${{ github.event.inputs.siteUrl }}
-          product: ${{ github.event.inputs.product }}
