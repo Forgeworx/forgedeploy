@@ -1,44 +1,77 @@
 name: Deploy Forge App
 
+# This workflow allows manual deployment of a Forge app via GitHub Actions UI
+# It supports deploying to different environments and optionally installing to Atlassian sites
 on:
   workflow_dispatch:
     inputs:
+      # Required: The Forge environment to deploy to
+      # Common values: development, staging, production
       environment:
         required: true
-        description: 'Forge environment'
+        description: 'Forge environment (e.g., development, staging, production)'
+      
+      # Required: The Atlassian product to target
+      # Valid values: jira, confluence
       product:
         required: true
-        description: 'Product'
+        description: 'Atlassian product (jira or confluence)'
+      
+      # Optional: Set to true if your Forge app is in a subdirectory
+      # When true, you must also provide customAppPath
       isCustomApp:
         type: boolean
         required: false
         default: false
-        description: 'Use custom subdirectory?'
+        description: 'Is the Forge app in a subdirectory?'
+      
+      # Optional: Relative path to custom Forge app directory
+      # Required when isCustomApp is true
+      # Example: apps/my-forge-app
       customAppPath:
         required: false
-        description: 'Relative path to custom app'
+        description: 'Relative path to custom app directory (required if isCustomApp is true)'
+      
+      # Optional: Whether to install the app to the Atlassian site after deployment
+      # Set to false if the app is already installed or you only want to deploy
       installToSite:
         type: boolean
         required: false
         default: false
-        description: 'Install app to Atlassian site?'
+        description: 'Install app to Atlassian site after deployment?'
+      
+      # Optional: Atlassian site URL where the app will be installed
+      # Required when installToSite is true
+      # Format: yourcompany.atlassian.net (without https://)
       siteUrl:
         required: false
-        description: 'Your Atlassian site URL'
+        description: 'Atlassian site URL (e.g., yourcompany.atlassian.net)'
 
 jobs:
   deploy:
     runs-on: ubuntu-latest
     steps:
+      # Checkout the repository code
       - uses: actions/checkout@v3
 
+      # Deploy the Forge app using the ForgeDeploy action
+      # Ensure FORGE_EMAIL and FORGE_API_TOKEN secrets are configured in your repository
       - uses: Forgeworx/forgedeploy@dev-03-install-or-deploy
         with:
+          # Authentication credentials from GitHub secrets
           email: ${{ secrets.FORGE_EMAIL }}
           apiToken: ${{ secrets.FORGE_API_TOKEN }}
+          
+          # Deployment configuration from workflow inputs
           environment: ${{ github.event.inputs.environment }}
           product: ${{ github.event.inputs.product }}
+          
+          # Optional: Custom app configuration
+          # Only needed if your Forge app is in a subdirectory
           isCustomApp: ${{ github.event.inputs.isCustomApp }}
           customAppPath: ${{ github.event.inputs.customAppPath }}
+          
+          # Optional: Installation configuration
+          # Set installToSite to true to install the app after deployment
           installToSite: ${{ github.event.inputs.installToSite }}
           siteUrl: ${{ github.event.inputs.siteUrl }}

@@ -1,32 +1,32 @@
 name: "ForgeDeploy"
-description: "Deploy and optionally install a Forge app using Forge CLI"
+description: "Deploy and optionally install an Atlassian Forge application to a specified environment and Atlassian site"
 
 inputs:
   email:
-    description: "Atlassian account email"
+    description: "Atlassian account email address used for authentication with Forge CLI"
     required: true
   apiToken:
-    description: "Atlassian API token"
+    description: "Atlassian API token for authentication. Generate at https://id.atlassian.com/manage/api-tokens"
     required: true
   environment:
-    description: "Forge environment to deploy to (e.g. development, staging, production)"
+    description: "Forge environment to deploy to. Common values: development, staging, production"
     required: true
   siteUrl:
-    description: "Atlassian site URL (e.g. yourcompany.atlassian.net)"
+    description: "Atlassian site URL where the app will be installed. Format: yourcompany.atlassian.net (without https://). Required when installToSite is true"
     required: false
   product:
-    description: "Atlassian product to deploy to (e.g. jira, confluence)"
+    description: "Target Atlassian product. Valid values: jira, confluence"
     required: true
   installToSite:
-    description: "Set to false to skip 'forge install' (e.g. if app is already installed)"
+    description: "Whether to install the app to the specified site after deployment. Set to false to skip installation (useful if the app is already installed or you only want to deploy)"
     required: false
     default: "true"
   isCustomApp:
-    description: "Set to true if this is a custom Forge app in a subdirectory"
+    description: "Set to true if the Forge app is located in a subdirectory rather than the repository root. When true, customAppPath must also be provided"
     required: false
     default: "false"
   customAppPath:
-    description: "Path to custom Forge app (relative to repo root)"
+    description: "Relative path to the custom Forge app directory from the repository root. Required when isCustomApp is true. Example: apps/my-forge-app"
     required: false
 
 runs:
