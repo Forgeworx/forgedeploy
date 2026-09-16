@@ -1,224 +1,273 @@
 # ForgeDeploy
 
-A GitHub Action for deploying and installing Atlassian Forge applications to specified environments and Atlassian sites.
+A composite GitHub Action that runs `forge deploy` and `forge install` for an Atlassian Forge app you already have.
 
-## Overview
+## Who it is for
 
-ForgeDeploy automates the deployment process for Atlassian Forge applications by providing a standardized GitHub Action that handles authentication, deployment, and installation. This eliminates manual deployment steps and enables consistent, repeatable deployments across different environments and team members.
+Teams with an existing Forge app who want CI instead of running `forge deploy` on a laptop. You do not move the app into this repository. You add a workflow next to your `manifest.yml`.
 
-## Features
+## Requirements
 
-- Automated authentication with Forge using secure GitHub secrets
-- Deploy to multiple environments (development, staging, production)
-- Support for both Jira and Confluence products
-- Optional installation to Atlassian sites
-- Support for custom Forge apps in subdirectories
-- Minimal configuration required
+- An existing Forge app: `manifest.yml` (and usually `package.json`) in the directory you deploy from
+- `FORGE_EMAIL` and `FORGE_API_TOKEN` in the job environment (GitHub Environment secrets, repo secrets, or a prior vault step)
+- A [scoped Forge API token](https://id.atlassian.com/manage-profile/security/api-tokens) (app = Forge, 1–365 days)
+- Node 22 or 24 (the action installs this; default **24**)
 
-## Prerequisites
-
-Before using this action, ensure you have:
-
-- An Atlassian account with API token access
-- A Forge application repository
-- Node.js 18+ (automatically set up by the action)
-- GitHub secrets configured (see Secrets section)
-
-## Inputs
-
-| Name | Description | Required | Default |
-|------|-------------|----------|---------|
-| `email` | Atlassian account email address used for authentication | Yes | - |
-| `apiToken` | Atlassian API token for authentication | Yes | - |
-| `environment` | Forge environment to deploy to (e.g., `development`, `staging`, `production`) | Yes | - |
-| `product` | Target Atlassian product (`jira` or `confluence`) | Yes | - |
-| `siteUrl` | Atlassian site URL where the app will be installed (e.g., `yourcompany.atlassian.net`). Required if `installToSite` is `true` | No | - |
-| `installToSite` | Whether to install the app to the specified site after deployment. Set to `false` to skip installation (useful if the app is already installed) | No | `true` |
-| `isCustomApp` | Set to `true` if this is a custom Forge app located in a subdirectory | No | `false` |
-| `customAppPath` | Relative path to the custom Forge app directory (required if `isCustomApp` is `true`) | No | - |
-
-## Secrets
-
-The following GitHub secrets must be configured in your repository:
-
-| Secret Name | Description |
-|-------------|-------------|
-| `FORGE_EMAIL` | Your Atlassian account email address |
-| `FORGE_API_TOKEN` | API token from your Atlassian account |
-
-### Generating an API Token
-
-1. Navigate to [Atlassian Account API Tokens](https://id.atlassian.com/manage/api-tokens)
-2. Click "Create API token"
-3. Give it a label (e.g., "GitHub Actions Forge Deploy")
-4. Copy the generated token
-5. Add it as a GitHub secret named `FORGE_API_TOKEN`
-
-## Usage
-
-### Basic Workflow
-
-Create a `.github/workflows/deploy.yml` file in your Forge app repository:
+Pin the action to a commit SHA or release tag, not `@main`:
 
 ```yaml
-name: Deploy Forge App
+- uses: Forgeworx/forgedeploy@<git-sha-or-tag>
+```
+
+## Use with an existing Forge app
+
+Leave the Forge app where it is. Add `.github/workflows/deploy.yml` in **that** repo.
+
+| Layout | What you set |
+|--------|----------------|
+| Typical app (`manifest.yml` + `package.json` at repo root) | Nothing extra. Defaults are for this. |
+| Custom UI in a subdirectory | `isCustomApp: true` and `customAppPath` (frontend only). Deploy still runs from the repo root or `workingDirectory`. |
+| Entire Forge app in a subdirectory | `workingDirectory` to that folder (the one with `manifest.yml`). |
+
+`workingDirectory` and `isCustomApp` / `customAppPath` are independent. Do not use one in place of the other.
+
+### Minimal deploy (fail-closed)
+
+Default `phase` is **deploy only**. This does not install the app on a site. No job `environment:` is required for non-production Forge environments.
+
+```yaml
+name: Deploy Forge app
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  deploy:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Forgeworx/forgedeploy@<git-sha-or-tag>
+        env:
+          FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
+          FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
+        with:
+          phase: deploy
+          environment: development
+```
+
+Custom UI at `static/hello-world`:
+
+```yaml
+        with:
+          phase: deploy
+          environment: development
+          isCustomApp: true
+          customAppPath: static/hello-world
+```
+
+App lives in `apps/jira-plugin`:
+
+```yaml
+        with:
+          phase: deploy
+          environment: development
+          workingDirectory: apps/jira-plugin
+```
+
+### Deploy and install (separate jobs)
+
+Engineering deploys. Release installs. Use two GitHub Environments with different reviewers and secrets: `{env}-deploy` and `{env}-install`. `installToSite: true` does **not** turn a deploy job into an install; that combination errors.
+
+Set `FORGE_EMAIL` / `FORGE_API_TOKEN` on the job (`env:`). Pull them from GitHub Environment secrets or from a previous step (Azure Key Vault, or any other vault). This action does not talk to vaults.
+
+```yaml
+name: Deploy Forge app
 
 on:
   workflow_dispatch:
     inputs:
       environment:
+        type: choice
         required: true
-        description: 'Forge environment (development, staging, production)'
-      product:
-        required: true
-        description: 'Product (jira or confluence)'
-      siteUrl:
-        required: false
-        description: 'Atlassian site URL'
-      installToSite:
+        default: development
+        options: [development, staging, production]
+      runInstall:
         type: boolean
-        required: false
-        default: true
-        description: 'Install app to Atlassian site?'
+        default: false
+      allowProduction:
+        type: boolean
+        default: false
+      product:
+        type: string
+      siteUrl:
+        type: string
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forge-${{ inputs.environment }}
+  cancel-in-progress: false
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.environment }}-deploy
     steps:
-      - uses: actions/checkout@v3
-
-      - uses: Forgeworx/forgedeploy@main
+      - uses: actions/checkout@v7
+      - uses: Forgeworx/forgedeploy@<git-sha-or-tag>
+        env:
+          FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
+          FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
         with:
-          email: ${{ secrets.FORGE_EMAIL }}
-          apiToken: ${{ secrets.FORGE_API_TOKEN }}
-          environment: ${{ github.event.inputs.environment }}
-          product: ${{ github.event.inputs.product }}
-          siteUrl: ${{ github.event.inputs.siteUrl }}
-          installToSite: ${{ github.event.inputs.installToSite }}
+          phase: deploy
+          environment: ${{ inputs.environment }}
+          allowProduction: ${{ inputs.allowProduction }}
+
+  install:
+    needs: deploy
+    if: ${{ inputs.runInstall }}
+    runs-on: ubuntu-24.04
+    environment: ${{ inputs.environment }}-install
+    steps:
+      - uses: actions/checkout@v7
+      - uses: Forgeworx/forgedeploy@<git-sha-or-tag>
+        env:
+          FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
+          FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
+          FORGE_INSTALL_API_TOKEN: ${{ secrets.FORGE_INSTALL_API_TOKEN }}
+        with:
+          phase: install
+          environment: ${{ inputs.environment }}
+          allowProduction: ${{ inputs.allowProduction }}
+          product: ${{ inputs.product }}
+          siteUrl: ${{ inputs.siteUrl }}
 ```
 
-### Deploy Without Installation
+`FORGE_INSTALL_API_TOKEN` is optional on install jobs. If unset, the action uses `FORGE_API_TOKEN`. Do not pass tokens via `with:`.
 
-To deploy without installing to a site (useful for apps already installed):
+Full copy: [example/.github/workflows/deploy.yml](example/.github/workflows/deploy.yml). Drop that file into the Forge app repo (not this repo).
+
+One-job deploy+install is break-glass: `phase: deploy-and-install` and `allowCombinedPhase: true`.
+
+`phase: lint` runs `forge lint` only. It does not need credentials.
+
+## Inputs
+
+| Name | Description | Required | Default |
+|------|-------------|----------|---------|
+| `phase` | `deploy`, `install`, `deploy-and-install`, or `lint`. `deploy` never installs. | No | `deploy` |
+| `email` | Legacy. Prefer job env `FORGE_EMAIL`. | No | - |
+| `apiToken` | Legacy. Prefer job env `FORGE_API_TOKEN`. | No | - |
+| `environment` | Forge environment name. Production-class names are gated. | Yes | - |
+| `allowProduction` | Required for production-class Forge envs. Not enough by itself. | No | `false` |
+| `allowCombinedPhase` | Required for `phase: deploy-and-install`. | No | `false` |
+| `allowNoLockfile` | Allow JS install without a lockfile when `GITHUB_ACTIONS=true`. | No | `false` |
+| `allowNonAtlassianSite` | Allow a `siteUrl` host that is not `*.atlassian.net`. | No | `false` |
+| `product` | `jira`, `confluence`, `compass`, `bitbucket`, `jira-service-management`. | When installing | - |
+| `siteUrl` | `yourcompany.atlassian.net`. `@` and userinfo are rejected. | When installing | - |
+| `installToSite` | If `true` with `phase: deploy`, the action errors. Use a separate install job. | No | `false` |
+| `upgradeIfInstalled` | Pass `--upgrade` on `forge install`. | No | `true` |
+| `confirmScopes` | Pass `--confirm-scopes`. Opt-in. | No | `false` |
+| `isCustomApp` | Build Custom UI in `customAppPath` before deploy/lint. | No | `false` |
+| `customAppPath` | Relative Custom UI path. `..` / `~` / CR/LF rejected. | No | - |
+| `workingDirectory` | Relative path to `manifest.yml`. Default: repo root. | No | `.` |
+| `nodeVersion` | `22` or `24` only. | No | `24` |
+| `forgeCliVersion` | Exact `@forge/cli` version. | No | `13.2.0` |
+| `cache` | Cache lockfiles when present. | No | `true` |
+| `lint` | Also run `forge lint`. `phase: lint` is lint only. | No | `false` |
+| `verbose` | `--verbose`. | No | `false` |
+| `skipVerify` | `--no-verify` on deploy. | No | `false` |
+| `approve` | Comma-separated `--approve` rules. | No | - |
+| `license` | `active`, `standard`, `advanced`, `inactive`, `trial`. | No | - |
+
+## Outputs
+
+`environment`, `deployed`, `installed`, `cli-version`, `working-directory`, `phase`. Written as heredoc outputs. Credentials are never written.
+
+## Production
+
+These Forge environment names are production-class: exact `production`, `prod`, `prd`; prefixes `production-*`, `prod-*`, `prd-*`.
+
+They require **both**:
+
+1. `allowProduction: true`
+2. Job `environment:` set to exactly `production`, `production-deploy`, or `production-install`
+
+A GitHub Environment that only matches the Forge name (`prod`, `prd`, `production-us`) is not enough. An empty `GITHUB_ENVIRONMENT` fails.
+
+When the job sets `environment:`:
+
+- Deploy / lint: `*-deploy` (for production, `production-deploy`)
+- Install: `*-install` (for production, `production-install`)
+- Combined break-glass: `production`, `production-deploy`, or `production-install`
 
 ```yaml
-- uses: Forgeworx/forgedeploy@main
-  with:
-    email: ${{ secrets.FORGE_EMAIL }}
-    apiToken: ${{ secrets.FORGE_API_TOKEN }}
-    environment: production
-    product: jira
-    installToSite: false
-```
-
-### Custom App in Subdirectory
-
-For Forge apps located in a subdirectory:
-
-```yaml
-- uses: Forgeworx/forgedeploy@main
-  with:
-    email: ${{ secrets.FORGE_EMAIL }}
-    apiToken: ${{ secrets.FORGE_API_TOKEN }}
-    environment: development
-    product: confluence
-    siteUrl: yourcompany.atlassian.net
-    isCustomApp: true
-    customAppPath: apps/my-forge-app
-```
-
-### Automated Deployment on Push
-
-Deploy automatically when code is pushed to specific branches:
-
-```yaml
-name: Deploy Forge App
-
 on:
   push:
-    branches:
-      - main
-      - develop
+    branches: [main]
+
+permissions:
+  contents: read
 
 jobs:
   deploy:
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    environment: production-deploy
     steps:
-      - uses: actions/checkout@v3
-
-      - uses: Forgeworx/forgedeploy@main
+      - uses: actions/checkout@v7
+      - uses: Forgeworx/forgedeploy@<git-sha-or-tag>
+        env:
+          FORGE_EMAIL: ${{ secrets.FORGE_EMAIL }}
+          FORGE_API_TOKEN: ${{ secrets.FORGE_API_TOKEN }}
         with:
-          email: ${{ secrets.FORGE_EMAIL }}
-          apiToken: ${{ secrets.FORGE_API_TOKEN }}
-          environment: ${{ github.ref == 'refs/heads/main' && 'production' || 'development' }}
-          product: jira
-          siteUrl: ${{ secrets.FORGE_SITE_URL }}
-          installToSite: true
+          phase: deploy
+          environment: production
+          allowProduction: true
 ```
 
-## How It Works
+## How it works
 
-The action performs the following steps:
+1. `scripts/validate-node.sh` — allowlist Node 22 or 24
+2. `scripts/detect-lockfile.sh` — find lockfiles; reject unsafe paths before writing outputs
+3. `actions/setup-node@v7` — install Node (cache when a lockfile exists)
+4. `scripts/deploy.sh` — validate phase, production gate, site, and paths
+5. Install JS dependencies (tokens unset). Build Custom UI if `isCustomApp` is true
+6. Install `@forge/cli@13.2.0`
+7. Run `forge deploy` and/or `forge install` in a subshell that exports `FORGE_*` only for `forge`
 
-1. Sets up Node.js 18 environment
-2. Installs Forge CLI globally
-3. Disables Forge usage analytics
-4. Installs root backend dependencies
-5. If `isCustomApp` is `true`:
-   - Installs frontend dependencies in the custom app directory
-   - Builds the frontend
-6. Deploys the Forge app to the specified environment
-7. Optionally installs the app to the specified Atlassian site and product
+## Example workflow
+
+[example/.github/workflows/deploy.yml](example/.github/workflows/deploy.yml) is a two-job workflow to copy into an existing Forge app repo.
 
 ## Troubleshooting
 
-### Authentication Failures
+- **App already installed on the site** — `phase: deploy` does not upgrade a site install. Use `phase: install` (and `upgradeIfInstalled`, default `true`).
+- **`phase: deploy` did not install** — expected. Use a separate install job, or break-glass `allowCombinedPhase`.
+- **Production failed** — set `allowProduction: true` and job `environment: production-deploy` or `production-install`.
+- **`siteUrl` rejected** — use `yourcompany.atlassian.net` only. No `@`, no userinfo.
+- **Node** — only 22 or 24. Not 18, 20, `22.23.1`, or `24.17.0`.
+- **`workingDirectory` / `customAppPath`** — relative, no `..` or `~`, must stay inside the repo.
+- **No lockfile** — commit one, or set `allowNoLockfile: true`.
+- **`yarn.lock` / `pnpm-lock.yaml` but the tool is missing** — the action fails.
 
-**Issue**: Action fails with authentication errors
+## For contributors and agents
 
-**Solutions**:
-- Verify that `FORGE_EMAIL` and `FORGE_API_TOKEN` secrets are correctly set in your repository
-- Ensure the API token is valid and has not expired
-- Check that the email address matches your Atlassian account
+This repository is the action, not a Forge app. There is no app `package.json` to install.
 
-### Deployment Failures
+```bash
+bash tests/run.sh
+bash tests/lint.sh
+```
 
-**Issue**: Deployment fails with build or validation errors
+Tests are offline. They do not call Atlassian.
 
-**Solutions**:
-- Ensure your Forge app builds successfully locally using `forge deploy`
-- Check that all required dependencies are listed in `package.json`
-- Verify that the `environment` value matches an existing Forge environment
-- For custom apps, ensure `customAppPath` is correct relative to the repository root
-
-### Installation Failures
-
-**Issue**: App deployment succeeds but installation fails
-
-**Solutions**:
-- Verify that `siteUrl` is correctly formatted (e.g., `yourcompany.atlassian.net`, not `https://yourcompany.atlassian.net`)
-- Ensure the site URL matches a site where you have installation permissions
-- Check that the `product` value matches the site's product type
-- Verify the app is not already installed if you're trying to reinstall
-
-### Custom App Path Issues
-
-**Issue**: Custom app deployment fails with path errors
-
-**Solutions**:
-- Ensure `isCustomApp` is set to `true` when using `customAppPath`
-- Verify `customAppPath` is relative to the repository root (e.g., `apps/my-app`, not `/apps/my-app`)
-- Check that the custom app directory contains a valid `package.json` and Forge configuration
-
-## Contributing
-
-Contributions are welcome. Please ensure that:
-
-- All changes maintain backward compatibility
-- Documentation is updated for any new features
-- Code follows existing patterns and style
-- Tests are added for new functionality
+How to change the action: [AGENTS.md](AGENTS.md).
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+[MIT](LICENSE)

@@ -1,86 +1,179 @@
 name: "ForgeDeploy"
 description: "Deploy and optionally install an Atlassian Forge application to a specified environment and Atlassian site"
+author: "Forgeworx"
+branding:
+  icon: upload-cloud
+  color: blue
 
 inputs:
+  phase:
+    description: "SOD phase: deploy (default), install, deploy-and-install (requires allowCombinedPhase), or lint. phase=deploy never installs."
+    required: false
+    default: "deploy"
   email:
-    description: "Atlassian account email address used for authentication with Forge CLI"
-    required: true
+    description: "LEGACY. Prefer job env FORGE_EMAIL. Composite inputs are not secret-typed. Used only when FORGE_EMAIL is unset."
+    required: false
   apiToken:
-    description: "Atlassian API token for authentication. Generate at https://id.atlassian.com/manage/api-tokens"
-    required: true
+    description: "LEGACY. Prefer job env FORGE_API_TOKEN. Composite inputs are not secret-typed. Create a scoped token (app: Forge, 1–365 day expiry) at https://id.atlassian.com/manage-profile/security/api-tokens. Used only when FORGE_API_TOKEN is unset."
+    required: false
   environment:
-    description: "Forge environment to deploy to. Common values: development, staging, production"
+    description: "Forge environment. production/prod/prd and production-*/prod-*/prd-* require allowProduction=true and GITHUB_ENVIRONMENT in production|production-deploy|production-install"
     required: true
+  allowProduction:
+    description: "Required for production-class Forge environments. Insufficient alone — GITHUB_ENVIRONMENT must be exactly production, production-deploy, or production-install"
+    required: false
+    default: "false"
+  allowCombinedPhase:
+    description: "Break-glass. Required to run phase=deploy-and-install in one job. Prefer separate deploy and install jobs"
+    required: false
+    default: "false"
+  allowNoLockfile:
+    description: "Allow npm install without a lockfile when GITHUB_ACTIONS=true. Fail-closed default"
+    required: false
+    default: "false"
+  allowNonAtlassianSite:
+    description: "Allow a siteUrl host that does not end in .atlassian.net. Fail-closed default"
+    required: false
+    default: "false"
   siteUrl:
-    description: "Atlassian site URL where the app will be installed. Format: yourcompany.atlassian.net (without https://). Required when installToSite is true"
+    description: "Atlassian site host (yourcompany.atlassian.net). '@' and userinfo are rejected. Required when installing"
     required: false
   product:
-    description: "Target Atlassian product. Valid values: jira, confluence"
-    required: true
+    description: "Target Atlassian app(s): jira, confluence, compass, bitbucket, jira-service-management. Comma-separated. Required only when installing"
+    required: false
   installToSite:
-    description: "Whether to install the app to the specified site after deployment. Set to false to skip installation (useful if the app is already installed or you only want to deploy)"
+    description: "Unused for phase=deploy (errors if true). Kept so callers cannot silently collapse SOD. Use a separate install job"
+    required: false
+    default: "false"
+  upgradeIfInstalled:
+    description: "Pass --upgrade to forge install so existing site installations are upgraded instead of failing"
     required: false
     default: "true"
+  confirmScopes:
+    description: "Pass --confirm-scopes. Default false (Forge CLI default). Opt in only when you intend to accept scope changes"
+    required: false
+    default: "false"
   isCustomApp:
-    description: "Set to true if the Forge app is located in a subdirectory rather than the repository root. When true, customAppPath must also be provided"
+    description: "Existing-app Custom UI: set true when a frontend in a subdirectory must be installed and built before deploy/lint. Does not change where forge deploy runs — that is workingDirectory"
     required: false
     default: "false"
   customAppPath:
-    description: "Relative path to the custom Forge app directory from the repository root. Required when isCustomApp is true. Example: apps/my-forge-app"
+    description: "Existing-app Custom UI path (for example static/hello-world). Required when isCustomApp is true. Relative; '..' and '~' are rejected. Does not replace workingDirectory"
     required: false
+  workingDirectory:
+    description: "Existing Forge app directory (the folder with manifest.yml). Default is the repo root. Set this when the whole app lives in a subdirectory. Relative; '..' and '~' are rejected"
+    required: false
+    default: "."
+  nodeVersion:
+    description: "Node.js major. Allowlist: 22 or 24. Rejects 18/20 and patches 22.23.1/24.17.0"
+    required: false
+    default: "24"
+  forgeCliVersion:
+    description: "Exact npm version for @forge/cli. Default 13.2.0. Override only with a known-good exact version"
+    required: false
+    default: "13.2.0"
+  cache:
+    description: "Enable setup-node dependency caching when a lockfile is present"
+    required: false
+    default: "true"
+  lint:
+    description: "Run forge lint in addition to the selected phase. phase=lint runs lint only and does not require credentials"
+    required: false
+    default: "false"
+  verbose:
+    description: "Pass --verbose to Forge CLI commands"
+    required: false
+    default: "false"
+  skipVerify:
+    description: "Pass --no-verify to forge deploy. Use only when you intentionally need to bypass lint/approval gates"
+    required: false
+    default: "false"
+  approve:
+    description: "Comma-separated validation rules for forge deploy --approve"
+    required: false
+  license:
+    description: "Optional --license for forge install (active, standard, advanced, inactive, trial)"
+    required: false
+
+outputs:
+  environment:
+    description: "Forge environment that was targeted"
+    value: ${{ steps.deploy.outputs.environment }}
+  deployed:
+    description: "Whether forge deploy completed successfully (true/false)"
+    value: ${{ steps.deploy.outputs.deployed }}
+  installed:
+    description: "Whether the app was installed to a site (true/false)"
+    value: ${{ steps.deploy.outputs.installed }}
+  cli-version:
+    description: "Installed Forge CLI version reported by forge --version"
+    value: ${{ steps.deploy.outputs.cli-version }}
+  working-directory:
+    description: "Directory used for Forge CLI commands"
+    value: ${{ steps.deploy.outputs.working-directory }}
+  phase:
+    description: "Resolved SOD phase that ran"
+    value: ${{ steps.deploy.outputs.phase }}
 
 runs:
   using: "composite"
   steps:
-    - uses: actions/setup-node@v3
+    - name: Validate Node.js version
+      run: bash "${GITHUB_ACTION_PATH}/scripts/validate-node.sh"
+      shell: bash
+      env:
+        NODE_VERSION: ${{ inputs.nodeVersion }}
+
+    - name: Detect dependency lockfile
+      id: lockfile
+      if: ${{ inputs.cache != 'false' }}
+      run: bash "${GITHUB_ACTION_PATH}/scripts/detect-lockfile.sh"
+      shell: bash
+      env:
+        WORKING_DIRECTORY: ${{ inputs.workingDirectory }}
+        CUSTOM_APP_PATH: ${{ inputs.customAppPath }}
+
+    - name: Set up Node.js (with cache)
+      if: ${{ steps.lockfile.outputs.cache != '' }}
+      uses: actions/setup-node@v7
       with:
-        node-version: "18"
+        node-version: ${{ inputs.nodeVersion }}
+        cache: ${{ steps.lockfile.outputs.cache }}
+        cache-dependency-path: ${{ steps.lockfile.outputs.path }}
 
-    - name: Install Forge CLI
-      run: npm install -g @forge/cli
-      shell: bash
+    - name: Set up Node.js
+      if: ${{ steps.lockfile.outputs.cache == '' }}
+      uses: actions/setup-node@v7
+      with:
+        node-version: ${{ inputs.nodeVersion }}
 
-    - name: Disable Forge usage analytics
-      run: forge settings set usage-analytics false
-      shell: bash
-
-    - name: Install root backend dependencies
-      run: npm install
-      shell: bash
-
-    - name: Install frontend dependencies (custom app only)
-      if: inputs.isCustomApp == 'true'
-      run: npm install
-      shell: bash
-      working-directory: ${{ inputs.customAppPath }}
-
-    - name: Build frontend (custom app only)
-      if: inputs.isCustomApp == 'true'
-      run: npm run build
-      shell: bash
-      working-directory: ${{ inputs.customAppPath }}
-
-    - name: Deploy Forge app
-      run: forge deploy --environment "${ENVIRONMENT}" --non-interactive
+    - name: Run Forge phase
+      id: deploy
+      run: bash "${GITHUB_ACTION_PATH}/scripts/deploy.sh"
       shell: bash
       env:
+        INPUT_FORGE_EMAIL: ${{ inputs.email }}
+        INPUT_FORGE_API_TOKEN: ${{ inputs.apiToken }}
+        PHASE: ${{ inputs.phase }}
         ENVIRONMENT: ${{ inputs.environment }}
-        FORGE_EMAIL: ${{ inputs.email }}
-        FORGE_API_TOKEN: ${{ inputs.apiToken }}
-
-    - name: Install Forge app (optional)
-      if: inputs.installToSite != 'false'
-      run: |
-        forge install \
-          --product "${PRODUCT}" \
-          --site "${SITE_URL}" \
-          --environment "${ENVIRONMENT}" \
-          --non-interactive
-      shell: bash
-      env:
-        INSTALL_TO_SITE: ${{ inputs.installToSite }}
-        PRODUCT: ${{ inputs.product }}
+        ALLOW_PRODUCTION: ${{ inputs.allowProduction }}
+        ALLOW_COMBINED_PHASE: ${{ inputs.allowCombinedPhase }}
+        ALLOW_NO_LOCKFILE: ${{ inputs.allowNoLockfile }}
+        ALLOW_NON_ATLASSIAN_SITE: ${{ inputs.allowNonAtlassianSite }}
+        GITHUB_ENVIRONMENT: ${{ github.environment }}
+        NODE_VERSION: ${{ inputs.nodeVersion }}
         SITE_URL: ${{ inputs.siteUrl }}
-        ENVIRONMENT: ${{ inputs.environment }}
-        FORGE_EMAIL: ${{ inputs.email }}
-        FORGE_API_TOKEN: ${{ inputs.apiToken }}
+        PRODUCT: ${{ inputs.product }}
+        INSTALL_TO_SITE: ${{ inputs.installToSite }}
+        UPGRADE_IF_INSTALLED: ${{ inputs.upgradeIfInstalled }}
+        CONFIRM_SCOPES: ${{ inputs.confirmScopes }}
+        IS_CUSTOM_APP: ${{ inputs.isCustomApp }}
+        CUSTOM_APP_PATH: ${{ inputs.customAppPath }}
+        WORKING_DIRECTORY: ${{ inputs.workingDirectory }}
+        FORGE_CLI_VERSION: ${{ inputs.forgeCliVersion }}
+        LINT: ${{ inputs.lint }}
+        VERBOSE: ${{ inputs.verbose }}
+        SKIP_VERIFY: ${{ inputs.skipVerify }}
+        APPROVE: ${{ inputs.approve }}
+        LICENSE: ${{ inputs.license }}
+        CACHE: ${{ inputs.cache }}
