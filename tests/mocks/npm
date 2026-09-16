@@ -1,0 +1,17 @@
+#!/usr/bin/env bash
+# Fake npm for leak and lockfile tests. Never talks to the network.
+set -euo pipefail
+
+: "${NPM_ARGV_LOG:?NPM_ARGV_LOG must point to a writable log file}"
+
+if [[ -n "${FORGE_API_TOKEN-}" || -n "${FORGE_INSTALL_API_TOKEN-}" || -n "${FORGE_EMAIL-}" ]]; then
+  printf 'LEAKED_FORGE_CREDENTIALS\n' >> "$NPM_ARGV_LOG"
+fi
+
+{
+  printf '+'
+  for arg in "$@"; do
+    printf ' %s' "$arg"
+  done
+  printf '\n'
+} >> "$NPM_ARGV_LOG"

@@ -1,0 +1,30 @@
+#!/usr/bin/env bash
+# Fake Forge CLI used by unit tests. Records argv; never talks to Atlassian.
+set -euo pipefail
+
+: "${FORGE_ARGV_LOG:?FORGE_ARGV_LOG must point to a writable log file}"
+
+{
+  printf 'cwd=%s\n' "$(pwd)"
+  printf '+'
+  for arg in "$@"; do
+    printf ' %s' "$arg"
+  done
+  printf '\n'
+} >> "$FORGE_ARGV_LOG"
+
+case "${1-}" in
+  --version)
+    printf '%s\n' "${MOCK_FORGE_VERSION:-13.2.0}"
+    ;;
+  settings|deploy|install|lint)
+    if [[ "${MOCK_FORGE_FAIL-}" == "$1" ]]; then
+      echo "mock forge ${1} failed" >&2
+      exit 1
+    fi
+    ;;
+  *)
+    echo "mock forge: unknown command: ${1-}" >&2
+    exit 2
+    ;;
+esac

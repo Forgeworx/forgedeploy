@@ -1,0 +1,35 @@
+---
+description: SOD and safety constraints when editing the composite action surface or scripts
+globs: action.yml,scripts/**/*.sh
+alwaysApply: false
+---
+
+# ForgeDeploy action/scripts
+
+This is a composite GitHub Action, not a Forge app. Full workflow: [AGENTS.md](../../AGENTS.md).
+
+## Do not
+
+- Let `installToSite=true` upgrade `phase=deploy` into an install.
+- Add Azure/AWS/GCP vault SDKs. Compose vault steps in the consumer workflow.
+- Write tokens, email, or secrets to `GITHUB_OUTPUT`. Reject CR/LF on every output, including `path`.
+- Set `FORGE_API_TOKEN: ${{ inputs.apiToken }}` on a step (clobbers job env). Use `INPUT_FORGE_*`.
+- Export `FORGE_*` around npm/yarn/pnpm. Only the `forge` subshell gets credentials.
+- Skip path checks in `detect-lockfile.sh` (it runs before `deploy.sh`).
+- Merge `workingDirectory` with `isCustomApp` / `customAppPath`.
+- Unpin `@forge/cli` from an exact version (default `13.2.0`).
+- When inputs change, update README, AGENTS.md, and `example/.github/workflows/deploy.yml` so they stay accurate.
+
+## Production gate
+
+Forge names `production` / `prod` / `prd` and `production-*` / `prod-*` / `prd-*` need `allowProduction=true` **and** `GITHUB_ENVIRONMENT` in `production` | `production-deploy` | `production-install`. A GH env that merely matches the Forge name is not protected.
+
+When `GITHUB_ENVIRONMENT` is set: deploy/lint → `*-deploy`; install → `*-install`; combined → those three production names only.
+
+```bash
+# ❌ BAD — GH env "prod" is not protected
+is_protected_github_environment "prod" && echo open
+
+# ✅ GOOD
+is_protected_github_environment "production-deploy"
+```
